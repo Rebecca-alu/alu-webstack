@@ -1,32 +1,16 @@
 #!/usr/bin/env bash
-# Displays DNS information for the specified subdomains.
+# Displays the DNS record type and destination of a domain's subdomains
 
-domain=$1
-
-get_subdomain_info() {
-    local subdomain="$1"
-    local result
-    local record_type
-    local destination
-
-    result=$(dig "${subdomain}.${domain}" +noall +answer | awk '$4 == "A" || $4 == "AAAA" || $4 == "CNAME" {print $4, $5}')
-
-    read -r record_type destination <<< "$result"
-
-    if [ -z "$result" ]; then
-        echo "The subdomain ${subdomain} was not found"
-        return
-    fi
-
-    echo "The subdomain ${subdomain} is a ${record_type} record and points to ${destination}"
+audit_subdomain () {
+    dig "$2.$1" | grep -A1 'ANSWER SECTION:' | tail -1 | awk -v name="$2" '{print "The subdomain " name " is a " $4 " record and points to " $5}'
 }
 
-if [ "$#" -eq 2 ]; then
-    get_subdomain_info "$2"
+if [ $# -eq 2 ]
+then
+    audit_subdomain "$1" "$2"
 else
-    get_subdomain_info "www"
-    get_subdomain_info "lb-01"
-    get_subdomain_info "web-01"
-    get_subdomain_info "web-02"
+    for sub in www lb-01 web-01 web-02
+    do
+        audit_subdomain "$1" "$sub"
+    done
 fi
-
