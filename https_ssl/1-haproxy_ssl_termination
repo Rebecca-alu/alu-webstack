@@ -1,11 +1,13 @@
 global
     log /dev/log local0
     log /dev/log local1 notice
-    maxconn 2048
-    tune.ssl.default-dh-param 2048
+    chroot /var/lib/haproxy
+    stats socket /run/haproxy/admin.sock mode 660 level admin
+    stats timeout 30s
     user haproxy
     group haproxy
     daemon
+    tune.ssl.default-dh-param 2048
 
 defaults
     log global
@@ -16,12 +18,17 @@ defaults
     timeout client 50000
     timeout server 50000
 
-frontend https_front
-    bind *:443 ssl crt /etc/ssl/private/haproxy.pem
-    default_backend web_backend
+frontend web_front
+    bind *:80
+    bind *:443 ssl crt /etc/haproxy/certs/
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+    default_backend web_back
 
-backend web_backend
+backend web_back
+    mode http
     balance roundrobin
-    option httpchk GET /
-    server web-01 3.8.48.55:80 check
-    server web-02 3.10.235.40:80 check
+    option httpchk GET /api/health
+    server 7250-web-01 3.8.48.55:80 check
+    server 7250-web-02 3.10.235.40:80 check
